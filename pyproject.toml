@@ -6,7 +6,15 @@ authors = ["meirelescg <geu_costa@outlook.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.12,<3.13"
+langchain = "^0.2.5"
+langchain-chroma = "^0.1.1"
+langchain-openai = "^0.1.9"
+python-dotenv = "^1.0.1"
+langchain-community = "^0.2.5"
+pypdf = "^4.2.0"
+docarray = "^0.40.0"
+streamlit = "^1.36.0"
 
 
 [build-system]
