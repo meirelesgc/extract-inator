@@ -15,6 +15,8 @@ langchain-community = "^0.2.5"
 pypdf = "^4.2.0"
 docarray = "^0.40.0"
 streamlit = "^1.36.0"
+fitz = "^0.0.1.dev2"
+frontend = "^0.0.3"
 
 
 [build-system]
