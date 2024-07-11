@@ -21,8 +21,8 @@ docs = loader.load()
 
 from langchain_openai import ChatOpenAI
 
-# model = ChatOpenAI(model="gpt-3.5-turbo")
-model = ChatOpenAI(model="gpt-4o")
+model = ChatOpenAI(model="gpt-3.5-turbo")
+# model = ChatOpenAI(model="gpt-4o")
 # model = ChatOpenAI(model="gpt-4-turbo")
 
 from langchain_chroma import Chroma
