@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Load document
-file_path = "extract_inator/documents/Artigo_1.pdf"
+file_path = "documents/Manuscrito I^0S.pdf"
 loader = PyPDFLoader(file_path)
 docs = loader.load()
 
