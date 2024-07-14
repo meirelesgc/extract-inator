@@ -9,8 +9,9 @@ def document_loader():
 
     docs = list()
     for doc in os.listdir("documents/graph-documents"):
-        loader = PyPDFLoader(f"documents/graph-documents/{doc}")
-        docs.append(loader.load())
+        if doc.endswith(".pdf"):
+            loader = PyPDFLoader(f"documents/graph-documents/{doc}")
+            docs.append(loader.load())
     return docs
 
 
@@ -58,11 +59,6 @@ def create_parser():
     from langchain_core.output_parsers import JsonOutputParser
 
     class document_metadata(BaseModel):
-        # data_de_leitura: list[str] = Field(
-        #     description="""
-        #     REF MÊS/ANO - indica o período de referência para a fatura de energia elétrica.
-        #     """
-        # )
         saldo_total: list[int] = Field(
             description="""
                 Saldo  total de credito para o proximo faturamento.
@@ -94,12 +90,15 @@ if __name__ == "__main__":
     )
 
     from langchain.chains import create_retrieval_chain
+    from pprint import pprint
 
     results = list()
     docs = document_loader()
-    for doc in docs:
+    print("Analisando os documentos: ")
+    for index, doc in enumerate(docs):
         vectorstore = create_embeddings(doc)
         rag_chain = create_retrieval_chain(vectorstore, question_answer_chain)
+        print(f"\ncarregando documento [{index}]")
         result = rag_chain.invoke(
             {
                 "input": """
@@ -110,26 +109,23 @@ if __name__ == "__main__":
                 "format_instructions": parser.get_format_instructions(),
             }
         )
+        pprint(result["answer"])
 
-    print(result["answer"])
     import matplotlib.pyplot as plt
 
-    # Eixo X (tempo)
+    print("Montando o gráfico")
     T = range(len(result["answer"]["saldo_total"]))
 
-    # Criação do gráfico
     plt.figure(figsize=(10, 5))
     plt.plot(T, result["answer"]["saldo_total"], label="Saldo Total", marker="o")
     plt.plot(
         T, result["answer"]["energia_injetada"], label="Energia Injetada", marker="o"
     )
 
-    # Títulos e legendas
     plt.xlabel("Tempo (T)")
     plt.ylabel("Valores")
     plt.title("Gráfico de Saldo Total e Energia Injetada ao longo do Tempo")
     plt.legend()
 
-    # Exibição do gráfico
     plt.grid(True)
     plt.savefig("graph.png")
