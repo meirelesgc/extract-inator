@@ -3,18 +3,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def document_loader():
-    import os
-    from langchain_community.document_loaders import PyPDFLoader
-
-    docs = list()
-    for doc in os.listdir("documents/graph-documents"):
-        if doc.endswith(".pdf"):
-            loader = PyPDFLoader(f"documents/graph-documents/{doc}")
-            docs.append(loader.load())
-    return docs
-
-
 def create_embeddings(doc):
     from langchain_chroma import Chroma
     from langchain_openai import OpenAIEmbeddings
@@ -24,16 +12,6 @@ def create_embeddings(doc):
     splits = text_splitter.split_documents(doc)
     vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
     return vectorstore.as_retriever()
-
-
-def select_model():
-    from langchain_openai import ChatOpenAI
-
-    models = ["gpt-3.5-turbo", "gpt-4o", "gpt-4-turbo"]
-    for options, model in enumerate(models):
-        print(f"[{options}] - {model.title()}")
-    choice = int(input("Digite o código do modelo utilizado: "))
-    return ChatOpenAI(model=models[choice])
 
 
 def create_prompt():
@@ -59,6 +37,12 @@ def create_parser():
     from langchain_core.output_parsers import JsonOutputParser
 
     class document_metadata(BaseModel):
+        data: list[str] = Field(
+            description="""
+            Data de referencia do documento, apenas o mês e o ano.
+            Essa informação fica logo abaixo de  "REF:MÊS/ANO"
+            """
+        )
         saldo_total: list[int] = Field(
             description="""
                 Saldo  total de credito para o proximo faturamento.
@@ -67,7 +51,13 @@ def create_parser():
         )
         energia_injetada: list[int] = Field(
             description="""
-                Energia injetada na unidade de microgeração durante o mês em kWh
+                Energia injetada na unidade de microgeração durante o mês em kWh.
+                Essa informação fica na sessão de "INFORMAÇÕES IMPORTANTES
+                """
+        )
+        CAT: list[int] = Field(
+            description="""
+                No valor do consumo faturado está incluído o ajuste na(s)  função(ões) CAT de:
                 Essa informação fica na sessão de "INFORMAÇÕES IMPORTANTES
                 """
         )
@@ -76,56 +66,46 @@ def create_parser():
 
 
 if __name__ == "__main__":
+    import sys
 
+    choice = "gpt-4-turbo"
+    from langchain.chains import create_retrieval_chain
+    from pprint import pprint
+
+    import os
+    from langchain_community.document_loaders import PyPDFLoader
+
+    doc = sys.argv[1]
+    print(doc)
+    loader = PyPDFLoader(f"documents/graph-documents/{doc}")
+    docs = loader.load()
     from langchain.chains.combine_documents import create_stuff_documents_chain
 
     prompt = create_prompt()
 
     parser = create_parser()
 
-    model = select_model()
+    from langchain_openai import ChatOpenAI
 
+    model = ChatOpenAI(model=choice)
     question_answer_chain = create_stuff_documents_chain(
         llm=model, prompt=prompt, output_parser=parser
     )
-
-    from langchain.chains import create_retrieval_chain
-    from pprint import pprint
-
-    results = list()
-    docs = document_loader()
-    print("Analisando os documentos: ")
-    for index, doc in enumerate(docs):
-        vectorstore = create_embeddings(doc)
-        rag_chain = create_retrieval_chain(vectorstore, question_answer_chain)
-        print(f"\ncarregando documento [{index}]")
-        result = rag_chain.invoke(
-            {
-                "input": """
-                Analise o texto em português brasileiro e extraia os seguintes dados:
-                Quantos kWh de energia foram injetados por mês pela unidade de microgeração?
-                Saldo  total de credito para o proximo faturamento?
-                """,
-                "format_instructions": parser.get_format_instructions(),
-            }
-        )
-        pprint(result["answer"])
-
-    import matplotlib.pyplot as plt
-
-    print("Montando o gráfico")
-    T = range(len(result["answer"]["saldo_total"]))
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(T, result["answer"]["saldo_total"], label="Saldo Total", marker="o")
-    plt.plot(
-        T, result["answer"]["energia_injetada"], label="Energia Injetada", marker="o"
+    vectorstore = create_embeddings(docs)
+    rag_chain = create_retrieval_chain(vectorstore, question_answer_chain)
+    result = rag_chain.invoke(
+        {
+            "input": """
+            Analise o texto em português brasileiro e extraia os seguintes dados:
+            
+            Qual o mês e o ano que esse documento se refere, esta localizado em "REF:MÊS/ANO"?
+            Quantos kWh de energia foram injetados por mês pela unidade de microgeração?
+            Saldo  total de credito para o proximo faturamento?
+            Complete: No valor do consumo faturado está incluído o ajuste na(s)  função(ões) CAT de:
+            
+            Todos os documentos possuem essas informações.
+            """,
+            "format_instructions": parser.get_format_instructions(),
+        },
     )
-
-    plt.xlabel("Tempo (T)")
-    plt.ylabel("Valores")
-    plt.title("Gráfico de Saldo Total e Energia Injetada ao longo do Tempo")
-    plt.legend()
-
-    plt.grid(True)
-    plt.savefig("graph.png")
+    pprint(result["answer"])
