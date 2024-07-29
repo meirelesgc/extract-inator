@@ -2,3 +2,9 @@
 .env
 **/*.Identifier
 *.pdf
+.env
+chroma_*
+chroma
+.DS_Store
+*.pyc
+backup
