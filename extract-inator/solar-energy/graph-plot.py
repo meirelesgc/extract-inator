@@ -8,9 +8,11 @@ def create_embeddings(doc):
     from langchain_openai import OpenAIEmbeddings
     from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000, chunk_overlap=200)
     splits = text_splitter.split_documents(doc)
-    vectorstore = Chroma.from_documents(documents=splits, embedding=OpenAIEmbeddings())
+    vectorstore = Chroma.from_documents(
+        documents=splits, embedding=OpenAIEmbeddings())
     return vectorstore.as_retriever()
 
 
@@ -19,7 +21,8 @@ def create_prompt():
 
     system_prompt = (
         "Você é um assistente de extração de dados."
-        "Use o seguinte documento, e somente ele, para me devolver o que for solicitado."
+        "Use o seguinte documento, e somente ele, para me devolver o que for"
+        "solicitado."
         "Se você não sabe ou não consegue encontrar a informação, me avise."
         "Ser conciso."
         "\n\n"
@@ -51,13 +54,15 @@ def create_parser():
         )
         energia_injetada: list[int] = Field(
             description="""
-                Energia injetada na unidade de microgeração durante o mês em kWh.
+                Energia injetada na unidade de microgeração durante o mês em
+                kWh.
                 Essa informação fica na sessão de "INFORMAÇÕES IMPORTANTES
                 """
         )
         CAT: list[int] = Field(
             description="""
-                No valor do consumo faturado está incluído o ajuste na(s)  função(ões) CAT de:
+                No valor do consumo faturado está incluído o ajuste na(s)
+                função(ões) CAT de:
                 Essa informação fica na sessão de "INFORMAÇÕES IMPORTANTES
                 """
         )
@@ -68,11 +73,10 @@ def create_parser():
 if __name__ == "__main__":
     import sys
 
-    choice = "gpt-4-turbo"
+    choice = "gpt-4o-mini"
     from langchain.chains import create_retrieval_chain
     from pprint import pprint
 
-    import os
     from langchain_community.document_loaders import PyPDFLoader
 
     doc = sys.argv[1]
@@ -96,13 +100,17 @@ if __name__ == "__main__":
     result = rag_chain.invoke(
         {
             "input": """
-            Analise o texto em português brasileiro e extraia os seguintes dados:
-            
-            Qual o mês e o ano que esse documento se refere, esta localizado em "REF:MÊS/ANO"?
-            Quantos kWh de energia foram injetados por mês pela unidade de microgeração?
+            Analise o texto em português brasileiro e extraia os seguintes
+            dados:
+
+            Qual o mês e o ano que esse documento se refere, esta localizado
+            em "REF:MÊS/ANO"?
+            Quantos kWh de energia foram injetados por mês pela unidade de
+            microgeração?
             Saldo  total de credito para o proximo faturamento?
-            Complete: No valor do consumo faturado está incluído o ajuste na(s)  função(ões) CAT de:
-            
+            Complete: No valor do consumo faturado está incluído o ajuste na(s)
+            função(ões) CAT de:
+
             Todos os documentos possuem essas informações.
             """,
             "format_instructions": parser.get_format_instructions(),
