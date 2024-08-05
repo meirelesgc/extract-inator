@@ -1,7 +1,6 @@
 .venv
 .env
 **/*.Identifier
-*.pdf
 .env
 chroma_*
 chroma
