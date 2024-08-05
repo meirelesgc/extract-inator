@@ -1,9 +1,11 @@
 import argparse
 from langchain_community.vectorstores import Chroma
-from langchain.prompts import PromptTemplate
+from langchain.prompts import ChatPromptTemplate
 # from langchain_community.llms.ollama import Ollama
 from langchain_openai import ChatOpenAI
 from get_embedding_function import get_embedding_function
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain.chains import create_retrieval_chain
 from langchain_community.callbacks import get_openai_callback
 from datetime import datetime
 CHROMA_PATH = "exam-helpler-v2/chroma"
@@ -12,6 +14,10 @@ PROMPT_TEMPLATE = """
 Você é um assistente de extração de dados de laudos clinicos.
 Use os seguinte documento e somente ele, para me devolver o que for solicitado.
 Se você não sabe ou não consegue encontrar a informação, me avise.
+
+Preencha os campos que conseguir:
+
+{format_instructions}
 
 ---
 
@@ -76,30 +82,33 @@ def query_rag(query_text: str):
                 embedding_function=embedding_function)
 
     results = db.similarity_search_with_score(query_text, k=5)
-    print(f'coeficiente de similaridade da consulta: {results[0][1]}')
+    # if len(results) == 0 or results[0][1] < 0.9:
+    #     print("Sem embasamento o suficiente para responder.")
+    #     return
 
-    context_text = "\n\n---\n\n".join(
-        [doc.page_content for doc, _score in results])
+    setup = [("system", PROMPT_TEMPLATE), ("user", "{input}")]
+    prompt_template = ChatPromptTemplate.from_messages(setup)
     parser = create_parser()
 
-    prompt_template = PromptTemplate(
-        template=PROMPT_TEMPLATE,
-        input_variables=["context"],
-        partial_variables={
-            "format_instructions": parser.get_format_instructions()
-        },)
-    prompt = prompt_template.format(context=context_text)
-
     model = ChatOpenAI(model='gpt-4o-mini', temperature=0.3)
-    chain = prompt | model | parser
+    question_answer_chain = create_stuff_documents_chain(
+        llm=model, prompt=prompt_template, output_parser=parser)
+    reg_chain = create_retrieval_chain(
+        db.as_retriever(), question_answer_chain)
+
     with get_openai_callback() as cb:
-        response_text = chain.invoke()
+        response_json = reg_chain.invoke({
+            'input': query_text,
+            'format_instructions': parser.get_format_instructions()
+        })
         print(cb)
 
+    from pprint import pprint
+
     sources = [doc.metadata.get("id", None) for doc, _score in results]
-    formatted_response = f"Response: {response_text}\nSources: {sources}"
-    print(formatted_response)
-    return response_text
+    pprint(response_json['answer'])
+    print(f"Fontes: {sources}")
+    return response_json
 
 
 if __name__ == "__main__":
